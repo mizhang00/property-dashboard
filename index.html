@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房产管理仪表板</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "Hiragino Sans", "PingFang SC", sans-serif; background: #f0f2f5; color: #222; min-height: 100vh; }
+
+header { background: #1a1a2e; color: white; padding: 18px 28px; display: flex; align-items: center; gap: 12px; }
+header h1 { font-size: 18px; font-weight: 600; }
+header .sub { font-size: 11px; opacity: 0.5; margin-left: auto; }
+
+.view { display: none; padding: 28px; max-width: 1000px; margin: 0 auto; }
+.view.active { display: block; }
+
+.breadcrumb { font-size: 13px; color: #888; margin-bottom: 22px; display: flex; align-items: center; gap: 6px; }
+.breadcrumb a { color: #4f8ef7; cursor: pointer; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb span { color: #ccc; }
+
+/* Building cards */
+.buildings { display: flex; gap: 20px; flex-wrap: wrap; }
+.building-card { flex: 1; min-width: 240px; background: white; border-radius: 14px; padding: 24px 22px; cursor: pointer; transition: box-shadow 0.2s, transform 0.15s; box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-top: 4px solid; }
+.building-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.13); transform: translateY(-2px); }
+.building-card.roppongi { border-top-color: #1a73e8; }
+.building-card.adachi   { border-top-color: #137333; }
+.building-card.kodaira  { border-top-color: #7b1fa2; }
+.building-card .icon { font-size: 32px; margin-bottom: 12px; }
+.building-card h2 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.building-card .addr { font-size: 12px; color: #888; margin-bottom: 14px; line-height: 1.5; }
+.building-card .stats { display: flex; gap: 16px; }
+.stat .num { font-size: 22px; font-weight: 700; line-height: 1; }
+.stat .lbl { font-size: 11px; color: #888; margin-top: 2px; }
+.roppongi .num { color: #1a73e8; }
+.adachi   .num { color: #137333; }
+.kodaira  .num { color: #7b1fa2; }
+
+/* Room grid */
+.floor-label { font-size: 11px; font-weight: 700; color: #aaa; letter-spacing: 1px; text-transform: uppercase; margin: 22px 0 8px; }
+.rooms-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.room-card { background: white; border-radius: 10px; padding: 14px 14px 12px; cursor: pointer; transition: box-shadow 0.2s, transform 0.15s; box-shadow: 0 1px 4px rgba(0,0,0,0.07); border-top: 3px solid; position: relative; min-height: 120px; }
+.room-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.12); transform: translateY(-1px); }
+.room-card.occupied  { border-top-color: #34a853; }
+.room-card.scheduled { border-top-color: #a142f4; }
+.room-card.reviewing { border-top-color: #4f8ef7; }
+.room-card.renting   { border-top-color: #fbbc04; }
+
+.room-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.room-num { font-size: 22px; font-weight: 800; }
+.room-status { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+.occupied  .room-status { background: #e6f4ea; color: #137333; }
+.scheduled .room-status { background: #f3e8fd; color: #7b1fa2; }
+.reviewing .room-status { background: #e8f0fe; color: #1a73e8; }
+.renting   .room-status { background: #fef7e0; color: #b45309; }
+
+.room-info { font-size: 12px; line-height: 1.6; }
+.room-info .ri-label { color: #aaa; font-size: 10.5px; }
+.room-info .ri-value { color: #333; font-weight: 500; }
+.room-arrow { position: absolute; right: 10px; bottom: 10px; color: #ddd; font-size: 14px; }
+
+/* Room detail */
+.room-detail { background: white; border-radius: 14px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.room-detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid #f0f2f5; }
+.room-detail-num { font-size: 36px; font-weight: 800; }
+.room-detail-meta h3 { font-size: 16px; font-weight: 600; }
+.room-detail-meta p  { font-size: 13px; color: #888; margin-top: 2px; }
+
+.detail-section { margin-bottom: 22px; }
+.detail-section h4 { font-size: 12px; font-weight: 700; color: #aaa; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 10px; }
+
+.condition-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.condition-item { background: #f7f8fc; border-radius: 8px; padding: 10px 12px; }
+.condition-item .c-label { font-size: 11px; color: #888; margin-bottom: 3px; }
+.condition-item .c-value { font-size: 14px; font-weight: 700; color: #222; }
+
+.original-text { background: #f7f8fc; border-radius: 8px; padding: 12px 14px; font-size: 13px; line-height: 1.7; color: #444; border-left: 3px solid #4f8ef7; margin-bottom: 8px; }
+.original-text .msg-meta { font-size: 11px; color: #aaa; margin-bottom: 4px; }
+
+.pending-tag { display: inline-block; background: #fef3e2; color: #b45309; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+.confirmed-tag { display: inline-block; background: #e6f4ea; color: #137333; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="white" stroke-width="1.8" fill="none"/><path d="M9 21V12h6v9" stroke="white" stroke-width="1.8"/></svg>
+  <h1>房产管理仪表板</h1>
+  <span class="sub">群聊记录至 2026-06-08 ｜ 绿=已租 黄=招租中 蓝=申请审查中</span>
+</header>
+
+<!-- VIEW 1: BUILDINGS -->
+<div id="view-buildings" class="view active">
+  <div class="breadcrumb">全部房产</div>
+  <div class="buildings">
+    <div class="building-card roppongi" onclick="showBuilding('roppongi')">
+      <div class="icon">🏢</div>
+      <h2>六本木</h2>
+      <div class="addr">ザ・レジデンス六本木<br>港区</div>
+      <div class="stats">
+        <div class="stat"><div class="num">1</div><div class="lbl">总房间</div></div>
+        <div class="stat"><div class="num">1</div><div class="lbl">已租出</div></div>
+        <div class="stat"><div class="num">0</div><div class="lbl">空置</div></div>
+      </div>
+    </div>
+    <div class="building-card adachi" onclick="showBuilding('adachi')">
+      <div class="icon">🏘️</div>
+      <h2>足立区（公园）</h2>
+      <div class="addr">b'CASA おおさかえ公園<br>足立区西竹の塚1丁目7-11</div>
+      <div class="stats">
+        <div class="stat"><div class="num">9</div><div class="lbl">总房间</div></div>
+        <div class="stat"><div class="num">8</div><div class="lbl">已租出</div></div>
+        <div class="stat"><div class="num">1</div><div class="lbl">申请中</div></div>
+      </div>
+    </div>
+    <div class="building-card kodaira" onclick="showBuilding('kodaira')">
+      <div class="icon">🏘️</div>
+      <h2>小平市（一桥）</h2>
+      <div class="addr">ジーメゾン小平ウエスト<br>東京都小平市・一桥学园附近</div>
+      <div class="stats">
+        <div class="stat"><div class="num">9</div><div class="lbl">总房间</div></div>
+        <div class="stat"><div class="num">8</div><div class="lbl">已租出</div></div>
+        <div class="stat"><div class="num">1</div><div class="lbl">招租中</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW 2A: ROPPONGI -->
+<div id="view-roppongi" class="view">
+  <div class="breadcrumb"><a onclick="showBuildings()">全部房产</a><span>›</span>六本木</div>
+  <div class="rooms-grid" style="grid-template-columns:1fr;max-width:260px;">
+    <div class="room-card occupied" onclick="showRoom('roppongi','1201')">
+      <div class="room-header"><span class="room-num">1201</span><span class="room-status">出租中</span></div>
+      <div class="room-info">
+        <div><span class="ri-label">租客</span> <span class="ri-value">法人（保证会社通过）</span></div>
+        <div><span class="ri-label">契约开始</span> <span class="ri-value">2025-10-31</span></div>
+      </div>
+      <div class="room-arrow">›</div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW 2B: ADACHI -->
+<div id="view-adachi" class="view">
+  <div class="breadcrumb"><a onclick="showBuildings()">全部房产</a><span>›</span>足立区（公园）</div>
+  <div class="floor-label">1F</div>
+  <div class="rooms-grid">
+    <div class="room-card occupied" onclick="showRoom('adachi','101')">
+      <div class="room-header"><span class="room-num">101</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">—</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card occupied" onclick="showRoom('adachi','102')">
+      <div class="room-header"><span class="room-num">102</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">2025-12-15</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card occupied" onclick="showRoom('adachi','103')">
+      <div class="room-header"><span class="room-num">103</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">—</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+  </div>
+  <div class="floor-label">2F</div>
+  <div class="rooms-grid">
+    <div class="room-card occupied" onclick="showRoom('adachi','201')">
+      <div class="room-header"><span class="room-num">201</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约更新</span> <span class="ri-value">2026-01</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card reviewing" onclick="showRoom('adachi','202')">
+      <div class="room-header"><span class="room-num">202</span><span class="room-status">申请审查中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">申请进入（2026-06-01）</span></div><div><span class="ri-label">退租日</span> <span class="ri-value">2026-05-09</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card occupied" onclick="showRoom('adachi','203')">
+      <div class="room-header"><span class="room-num">203</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">43岁 日本籍 女性 正社员</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">2025-02</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+  </div>
+  <div class="floor-label">3F</div>
+  <div class="rooms-grid">
+    <div class="room-card occupied" onclick="showRoom('adachi','301')">
+      <div class="room-header"><span class="room-num">301</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">—</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card occupied" onclick="showRoom('adachi','302')">
+      <div class="room-header"><span class="room-num">302</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">—</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card occupied" onclick="showRoom('adachi','303')">
+      <div class="room-header"><span class="room-num">303</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">2024-08-17</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW 2C: KODAIRA -->
+<div id="view-kodaira" class="view">
+  <div class="breadcrumb"><a onclick="showBuildings()">全部房产</a><span>›</span>小平市（一桥）</div>
+  <div class="floor-label">1F</div>
+  <div class="rooms-grid">
+    <div class="room-card occupied" onclick="showRoom('kodaira','101')">
+      <div class="room-header"><span class="room-num">101</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">—</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card occupied" onclick="showRoom('kodaira','102')">
+      <div class="room-header"><span class="room-num">102</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">2025-12-15</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card occupied" onclick="showRoom('kodaira','103')">
+      <div class="room-header"><span class="room-num">103</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">—</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+  </div>
+  <div class="floor-label">2F</div>
+  <div class="rooms-grid">
+    <div class="room-card occupied" onclick="showRoom('kodaira','201')">
+      <div class="room-header"><span class="room-num">201</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">37岁 日本籍男性 宿泊業</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">2026-03-30</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card occupied" onclick="showRoom('kodaira','202')">
+      <div class="room-header"><span class="room-num">202</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">2026-03-29</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card occupied" onclick="showRoom('kodaira','203')">
+      <div class="room-header"><span class="room-num">203</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">城西医院正社员（夫妻）</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">2025-10-31</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+  </div>
+  <div class="floor-label">3F</div>
+  <div class="rooms-grid">
+    <div class="room-card occupied" onclick="showRoom('kodaira','301')">
+      <div class="room-header"><span class="room-num">301</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">22岁 日本籍男性 野村金融</span></div><div><span class="ri-label">契约开始</span> <span class="ri-value">2025-02-12</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card reviewing" onclick="showRoom('kodaira','302')">
+      <div class="room-header"><span class="room-num">302</span><span class="room-status">申请审查中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">申请进入（2026-06-08）</span></div><div><span class="ri-label">退租日</span> <span class="ri-value">2026-05-31</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+    <div class="room-card occupied" onclick="showRoom('kodaira','303')">
+      <div class="room-header"><span class="room-num">303</span><span class="room-status">出租中</span></div>
+      <div class="room-info"><div><span class="ri-label">租客</span> <span class="ri-value">—</span></div><div><span class="ri-label">契约更新</span> <span class="ri-value">2026-07-21到期</span></div></div>
+      <div class="room-arrow">›</div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW 3: ROOM DETAIL -->
+<div id="view-room" class="view">
+  <div class="breadcrumb" id="room-breadcrumb"></div>
+  <div class="room-detail" id="room-detail-content"></div>
+</div>
+
+<script>
+const BUILDINGS = { roppongi:'六本木', adachi:'足立区（公园）', kodaira:'小平市（一桥）' };
+
+const ROOMS = {
+  roppongi: {
+    '1201': {
+      status:'occupied', statusLabel:'已租出', color:'#34a853',
+      tenant:'法人租客（2番手，保证会社通过）',
+      contractStart:'2025-10-31',
+      notes:'宠物（小型犬）可，加1个月礼金。1年内退租有1个月违约金。2026-02原租客退租后新租客入住。',
+      conditions:{ rent:'—', mgmt:'—', deposit:'—（新契约）', gift:'礼金+1个月（宠物）', cleaning:'0（房东负担0）', ad:'0' },
+      hasConditions: false,
+      originalText:[
+        {date:'2025-10-14', sender:'三川（周）', text:'六本木的租客想养小型犬，您看加一个月礼金可以吗？'},
+        {date:'2025-10-16', sender:'三川（周）', text:'宠物加一个月礼金已经同意了。今天16点签约预定，契约开始日是设定的10月31日。'},
+        {date:'2025-10-06', sender:'Minna', text:'加上一年内退租有1个月违约金的条款'},
+        {date:'2025-10-14', sender:'三川（周）', text:'这个是1201的报价单，这次您负担是0日元这样。'},
+        {date:'2026-02-02', sender:'三川（周）', text:'六本木退租者的资料拿到了，不好意思让您久等啦。'}
+      ]
+    }
+  },
+  adachi: {
+    '101':{ status:'occupied', statusLabel:'已租出', color:'#34a853', tenant:'—（群内未提及）', contractStart:'—', notes:'群内无该房间具体信息。', conditions:null, hasConditions:false, originalText:[] },
+    '102':{
+      status:'applied', statusLabel:'申请审查中', color:'#4f8ef7',
+      tenant:'新租客（申请进入，等待审查）',
+      contractStart:'2025-12 新契约完成',
+      notes:'前租客（生活保障者）2025-03退租。2025-03-13收到新租房申请。2025-12-10安排工事，2025-12-15合同签好。',
+      conditions:{ rent:'65,000', mgmt:'5,000', deposit:'0', gift:'0', cleaning:'44,000（借主）', ad:'待定' },
+      hasConditions:true,
+      originalText:[
+        {date:'2025-03-07', sender:'三川（周）', text:'65000＋5000\n押金0 礼金0\n清掃費44000\n因為間隔時間很短，我按照之前的招租條件可以嗎？'},
+        {date:'2025-03-07', sender:'Minna', text:'那就招租吧'},
+        {date:'2025-12-01', sender:'三川（周）', text:'小平102的报价单和照片我这边拿到了，群里共有给您。'},
+        {date:'2025-12-15', sender:'三川（周）', text:'您好，102的合同已经签好了。'}
+      ]
+    },
+    '103':{ status:'occupied', statusLabel:'已租出', color:'#34a853', tenant:'—（群内未提及）', contractStart:'—', notes:'群内无该房间具体信息。', conditions:null, hasConditions:false, originalText:[] },
+    '201':{ status:'occupied', statusLabel:'已租出', color:'#34a853', tenant:'—', contractStart:'契约更新：2026-01', notes:'2025-11-28三川发起契约更新（明年1月到更新时间），Minna同意。', conditions:null, hasConditions:false,
+      originalText:[{date:'2025-11-28', sender:'三川（周）', text:'ｂ\'CASAおおさかえ公園 201\n明年1月份到更新的时间了，您看正常更新可以吗？'}]
+    },
+    '202':{
+      status:'applied', statusLabel:'申请审查中', color:'#4f8ef7',
+      tenant:'新申请（2026-06-01进申请）',
+      contractStart:'—（等待审查通过）',
+      notes:'前租客2026-05-09退租。5月29日讨论招租条件，确定AD=100%（74,000円）。6月1日已进申请。',
+      conditions:{ rent:'74,000', mgmt:'5,000', deposit:'0', gift:'0', cleaning:'44,000（借主）', ad:'100%（74,000円，房东付）' },
+      hasConditions:true,
+      originalText:[
+        {date:'2026-04-08', sender:'真澄(赵)_YAK AM', text:'ｂ\'CASAおおさかえ公園202号室收到解约申请了，解约希望日在2026年5月9日。'},
+        {date:'2026-05-29', sender:'真澄(赵)_YAK AM', text:'【募集条件】賃料：74,000円 / 共益費：5,000円 / 敷金：0 / 礼金：0 / 清掃費44,000円（借主）/ AD：なし\n【解约条件】1年以内の解約：賃料総額1ヶ月分の違約金あり / 解約予告：1ヶ月前通知 / 外国籍可能'},
+        {date:'2026-05-29', sender:'真澄(赵)_YAK AM', text:'部长是说的100更好一些，50肯定是慢一些'},
+        {date:'2026-05-29', sender:'Minna', text:'那就100吧 → AD确认：100%（74,000円）'},
+        {date:'2026-05-29', sender:'真澄(赵)_YAK AM', text:'好的，公园202加100 然后小平时间，内见都刷新 先观察一周'},
+        {date:'2026-06-01', sender:'真澄(赵)_YAK AM', text:'房东上午好，ｂ\'CASAおおさかえ公園 202进申请了，'}
+      ]
+    },
+    '203':{
+      status:'occupied', statusLabel:'已租出', color:'#34a853',
+      tenant:'43岁 日本籍 女性 正社员',
+      contractStart:'2025-02（2025-02-22退租后入住）',
+      notes:'前租客2025-02-22退租。2025-02-05收到申请，43岁日本籍女性正社员，Minna批准。',
+      conditions:null, hasConditions:false,
+      originalText:[
+        {date:'2025-01-28', sender:'三川（周）', text:'我们收到了おおさかえ公園203的解约通知书，是住到2月22日这样。'},
+        {date:'2025-02-05', sender:'三川（周）', text:'ｂ\'ＣＡＳＡおおさかえ公園（203）收到申请了，43岁的女性 日本籍正社员'},
+        {date:'2025-02-05', sender:'Minna', text:'好的 继续向下进行吧'}
+      ]
+    },
+    '301':{ status:'occupied', statusLabel:'已租出', color:'#34a853', tenant:'—', contractStart:'—', notes:'群内无具体信息。', conditions:null, hasConditions:false, originalText:[] },
+    '302':{ status:'occupied', statusLabel:'已租出', color:'#34a853', tenant:'—', contractStart:'—', notes:'群内无具体信息。', conditions:null, hasConditions:false, originalText:[] },
+    '303':{
+      status:'occupied', statusLabel:'已租出', color:'#34a853',
+      tenant:'—',
+      contractStart:'2024-08-17',
+      notes:'2025-05-31契约更新（满1年，三川办理续约）。群内无退租信息。',
+      conditions:null, hasConditions:false,
+      originalText:[
+        {date:'2025-05-31', sender:'三川（周）', text:'ｂ\'ＣＡＳＡおおさかえ公園 303号室\n下个月契约到期，我们这边做更新手续可以吗？'},
+        {date:'2025-05-31', sender:'Minna', text:'可以'}
+      ]
+    }
+  },
+  kodaira: {
+    '101':{ status:'occupied', statusLabel:'已租出', color:'#34a853', tenant:'—', contractStart:'—', notes:'群内无该房间具体信息。', conditions:null, hasConditions:false, originalText:[] },
+    '102':{
+      status:'occupied', statusLabel:'已租出', color:'#34a853',
+      tenant:'新租客（2025-12签约）',
+      contractStart:'2025-12-15',
+      notes:'前租客2025-11-23退租。2025-10-30广告挂出即有申请。2025-12-01拿到报价单，2025-12-10安排工事，2025-12-15合同签好。',
+      conditions:{ rent:'69,000', mgmt:'3,000', deposit:'1个月', gift:'0', cleaning:'—', ad:'暂不挂（视情况再商量）' },
+      hasConditions:true,
+      originalText:[
+        {date:'2025-10-30', sender:'三川（周）', text:'小平102是11月23日退租，广告挂出去之后已经进申请了。'},
+        {date:'2025-10-20', sender:'三川（周）', text:'租金为69,000日元＋管理費3,000日元，\n押金1个月，礼金无，广告费暂不挂。您看成吗'},
+        {date:'2025-12-15', sender:'三川（周）', text:'您好，102的合同已经签好了。'}
+      ]
+    },
+    '103':{ status:'occupied', statusLabel:'已租出', color:'#34a853', tenant:'—', contractStart:'—', notes:'群内无该房间具体信息。', conditions:null, hasConditions:false, originalText:[] },
+    '201':{
+      status:'occupied', statusLabel:'已租出', color:'#34a853',
+      tenant:'新租客（2026-03-30入住）',
+      contractStart:'2026-04-16（契约完成）',
+      notes:'前租客山田洋裕，2026-03-16退租。2026-02-26收到解约申请，同日开始招租（按203相同条件）。2026-03-14新申请审查通过，入住日3月30日。2026-04-16契约完成。',
+      conditions:{ rent:'—（按203同等条件）', mgmt:'—', deposit:'无', gift:'无', cleaning:'44,000（借主）', ad:'AD100%（已确认）' },
+      hasConditions:true,
+      originalText:[
+        {date:'2026-02-26', sender:'真澄(赵)_YAK AM', text:'ジーメゾン小平ウエスト 201的租客也来解约申请了，按照之前的招租条件一起给您招租可以么'},
+        {date:'2026-02-26', sender:'Minna', text:'好 按203之前说的一样条件'},
+        {date:'2026-03-02', sender:'真澄(赵)_YAK AM', text:'咱们ジーメゾン小平ウエスト 201进申请啦，保证公司审查已经过了。\n37歳 日本籍男性 从事宿泊業、飲食サービス業\n入居予定日 2026-03-30'},
+        {date:'2026-04-16', sender:'三川（周）', text:'早上好\n小平201的契约书也完成了，谢谢您。'}
+      ]
+    },
+    '202':{
+      status:'occupied', statusLabel:'已租出', color:'#34a853',
+      tenant:'新租客（2026-03-29入住）',
+      contractStart:'2026-04-14（契约完成）',
+      notes:'前租客2026-02-09提交解约通知。与201同步招租。2026-03-06收到申请，希望入住日2026-03-29。2026-04-14契约完成。',
+      conditions:{ rent:'—（与201同等条件）', mgmt:'—', deposit:'无', gift:'无', cleaning:'44,000（借主）', ad:'AD100%（已确认）' },
+      hasConditions:true,
+      originalText:[
+        {date:'2026-02-09', sender:'真澄(赵)_YAK AM', text:'ジーメゾン小平ウエスト 202的租客来解约通知了 跟您汇报一下。\n房租按照賃料69,000円 管理費・共益費5,000円 然后加一个月押金去招租您看可以么'},
+        {date:'2026-03-06', sender:'真澄(赵)_YAK AM', text:'房东您好，咱们202也进申请了\n保证公司审查通过了，希望入住日是2026-03-29'},
+        {date:'2026-04-14', sender:'三川（周）', text:'晚上好\n小平202的契约书完成了'}
+      ]
+    },
+    '203':{
+      status:'occupied', statusLabel:'已租出', color:'#34a853',
+      tenant:'城西医院正社员（丈夫申请，夫妻入住）',
+      contractStart:'2025-10',
+      notes:'前租客2025-10-06解约。原状回復：租客负担69,344円，房东负担11,605円。1年内退租有1个月违约金。',
+      conditions:null, hasConditions:false,
+      originalText:[
+        {date:'2025-10-02', sender:'三川（周）', text:'咱们小平203收到新的租房申请了，现在的租客是10月6日解约。\n租客是城西医院的正社员，我看了一下内容应该是没问题的。不是，是她丈夫申请。'},
+        {date:'2025-10-06', sender:'Minna', text:'加上一年内退租有1个月违约金的条款'},
+        {date:'2025-10-20', sender:'三川（周）', text:'小平203的报价单让您久等啦，租客那边负担69,344日元，您这边负担11,605日元这样。'},
+        {date:'2025-10-30', sender:'三川（周）', text:'小平203的合同已经顺利缔结完毕，这是签约完的契约书。'}
+      ]
+    },
+    '301':{
+      status:'occupied', statusLabel:'已租出', color:'#34a853',
+      tenant:'22岁 日本籍男性（野村金融）',
+      contractStart:'2025-02-12（契约完成）',
+      notes:'前租客2025-01-23退租（回宫城老家）。原状回復房东负担0円。2025-01-17收到申请，2025-02-12契约完成。曾有AD费争议（未经同意扣2个月）。',
+      conditions:null, hasConditions:false,
+      originalText:[
+        {date:'2025-01-15', sender:'三川（周）', text:'今天和退房的租客有打电话沟通过，客户搬家的理由是回宫城的老家这样。'},
+        {date:'2025-01-17', sender:'三川（周）', text:'小平301的报价我们拿到了，这次您负担为0日元。\n下午好，小平301收到申请了。22岁的日本籍男生，接下来要去野村的金融保险类上班这样。'},
+        {date:'2025-02-12', sender:'三川（周）', text:'小平301全部结束了，我把契约书发给您。'}
+      ]
+    },
+    '302':{
+      status:'renting', statusLabel:'招租中', color:'#fbbc04',
+      tenant:'申请审查中（2026-06-08进申请）',
+      contractStart:'—',
+      notes:'2026-05-31退租。招租中，目前看不需要加AD。2026-06-08进申请，保证会社审查中。',
+      conditions:null, hasConditions:false,
+      originalText:[
+        {date:'2026-04-21', sender:'真澄(赵)_YAK AM', text:'ジーメゾン小平ウエスト302的租客提交解约申请了，解約希望日 2026年05月31日'},
+        {date:'2026-05-29', sender:'真澄(赵)_YAK AM', text:'ジーメゾン小平ウエスト302\n退去日 2026/05/31 一直在招租中'},
+        {date:'2026-06-08', sender:'（群成员）', text:'房东您好，小平302进了一个申请，现在应该是保证会社审查中，审查过了给您汇报，审查没过的话继续招租。目前看是不需要加ad的'},
+        {date:'2026-06-08', sender:'真澄(赵)_YAK AM', text:'您现在俩套都进申请了，目前没有空室。'}
+      ]
+    },
+    '303':{
+      status:'occupied', statusLabel:'已租出', color:'#34a853',
+      tenant:'—',
+      contractStart:'—',
+      notes:'2026-05-08通知契约将于2026-07-21满2年，三川申请办理更新手续。',
+      conditions:null, hasConditions:false,
+      originalText:[
+        {date:'2026-02-10', sender:'真澄(赵)_YAK AM', text:'咱们现在三楼最高是ジーメゾン小平ウエスト 303賃料71,000円 管理費・共益費5,000円'},
+        {date:'2026-05-08', sender:'真澄(赵)_YAK AM', text:'ジーメゾン小平ウエスト（303）\n2026/07/21契约满2年\n我们这边帮您做契约更新手续可以嘛'}
+      ]
+    }
+  }
+};
+
+let currentBuilding = null;
+
+function showBuildings() {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-buildings').classList.add('active');
+}
+function showBuilding(id) {
+  currentBuilding = id;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+}
+function showRoom(building, room) {
+  const data = ROOMS[building][room];
+  if (!data) return;
+  const bname = BUILDINGS[building];
+  document.getElementById('room-breadcrumb').innerHTML =
+    `<a onclick="showBuildings()">全部房产</a> <span>›</span> <a onclick="showBuilding('${building}')">${bname}</a> <span>›</span> ${room}号`;
+
+  let condHTML = '';
+  if (data.conditions) {
+    const tag = data.hasConditions ? '<span class="confirmed-tag">✓ 有正式招租条件</span>' : '';
+    condHTML = `<div class="detail-section"><h4>招租条件 ${tag}</h4><div class="condition-grid">
+      <div class="condition-item"><div class="c-label">月租金</div><div class="c-value">${data.conditions.rent} 円</div></div>
+      <div class="condition-item"><div class="c-label">管理费</div><div class="c-value">${data.conditions.mgmt} 円</div></div>
+      <div class="condition-item"><div class="c-label">押金（敷金）</div><div class="c-value">${data.conditions.deposit}</div></div>
+      <div class="condition-item"><div class="c-label">礼金</div><div class="c-value">${data.conditions.gift}</div></div>
+      <div class="condition-item"><div class="c-label">清掃費</div><div class="c-value">${data.conditions.cleaning}</div></div>
+      <div class="condition-item"><div class="c-label">广告费 (AD)</div><div class="c-value">${data.conditions.ad}</div></div>
+    </div></div>`;
+  }
+
+  let origHTML = '';
+  if (data.originalText.length > 0) {
+    origHTML = `<div class="detail-section"><h4>群内原文记录</h4>` +
+      data.originalText.map(m => `<div class="original-text"><div class="msg-meta">${m.date} · ${m.sender}</div>${m.text.replace(/\n/g,'<br>')}</div>`).join('') + `</div>`;
+  }
+
+  document.getElementById('room-detail-content').innerHTML = `
+    <div class="room-detail-header">
+      <div class="room-detail-num" style="color:${data.color}">${room}</div>
+      <div class="room-detail-meta">
+        <h3>${bname}</h3>
+        <p><span style="color:${data.color};font-weight:600">${data.statusLabel}</span> &nbsp;·&nbsp; ${data.tenant}</p>
+        ${data.contractStart !== '—' ? `<p style="font-size:12px;color:#aaa;margin-top:3px">契约日期：${data.contractStart}</p>` : ''}
+      </div>
+    </div>
+    ${condHTML}
+    <div class="detail-section">
+      <h4>备注</h4>
+      <p style="font-size:13px;color:#555;line-height:1.7">${data.notes}</p>
+    </div>
+    ${origHTML}`;
+
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-room').classList.add('active');
+}
+</script>
+</body>
+</html>
