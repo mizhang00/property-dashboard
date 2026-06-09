@@ -46,7 +46,8 @@ header .sub { font-size: 11px; opacity: 0.5; margin-left: auto; }
 .ri-label { color: #aaa; font-size: 10.5px; }
 .ri-value { color: #333; font-weight: 500; }
 .room-arrow { position: absolute; right: 10px; bottom: 10px; color: #ddd; font-size: 13px; }
-.cond-tag { display: inline-block; margin-top: 6px; font-size: 10px; font-weight: 600; color: #1a73e8; background: #e8f0fe; padding: 2px 7px; border-radius: 4px; }
+.cond-tag { display: inline-block; margin-top: 6px; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; color: #1a73e8; background: #e8f0fe; }
+.cond-tag.incomplete { color: #b45309; background: #fef7e0; }
 .room-detail { background: white; border-radius: 14px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
 .detail-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 22px; padding-bottom: 16px; border-bottom: 1px solid #f0f2f5; }
 .detail-num { font-size: 40px; font-weight: 800; line-height: 1; }
@@ -189,14 +190,15 @@ function showBuilding(b) {
     html += `<div class="floor-label">${f}F</div><div class="rooms-grid">`;
     fr.forEach(r => {
       const sc = STATUS_CLASS[r.status] || 's-renting';
-      const hasCond = r.ad_fee !== '' && (r.ad_fee !== '0' || r.rent || r.mgmt_fee || r.deposit || r.key_money);
+      const hasRent = r.rent && r.rent !== '0';
+      const incomplete = hasRent && [r.mgmt_fee, r.deposit, r.key_money, r.ad_fee].some(v => v === '');
       html += `<div class="room-card ${sc}" onclick="showRoom('${r.building}','${r.room}')">
         <div class="room-header"><span class="room-num">${r.room}</span><span class="room-status">${r.status}</span></div>
         <div class="room-info">
           <div><span class="ri-label">租客 </span><span class="ri-value">${r.tenant||'—'}</span></div>
           <div><span class="ri-label">契约 </span><span class="ri-value">${r.contract_start||'—'}</span></div>
         </div>
-        ${hasCond ? '<div class="cond-tag">📋 有招租条件</div>' : ''}
+        ${hasRent ? `<div class="cond-tag${incomplete ? ' incomplete' : ''}">${incomplete ? '⚠️ 条件不完全' : '📋 有招租条件'}</div>` : ''}
         <div class="room-arrow">›</div></div>`;
     });
     html += '</div>';
