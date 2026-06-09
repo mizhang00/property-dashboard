@@ -99,7 +99,7 @@ header .sub { font-size: 11px; opacity: 0.5; margin-left: auto; }
 
 <script>
 const SHEET_ID = '1ywzO3JanM6Qc_A3_XGLEPO_7BoHpQhDiso9FG6ZS3mA';
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&sheet=Sheet1';
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:csv&sheet=Sheet1';
 
 const BUILDINGS_META = {
   '六本木':        { color:'#1a73e8', addr:'ザ・レジデンス六本木　港区', icon:'🏢' },
@@ -119,17 +119,29 @@ const STATUS_COLOR = {
 let allRooms = [];
 let currentBuilding = '';
 
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].match(/(".*?"|[^,]+)/g).map(h => h.replace(/^"|"$/g,'').trim());
+  return lines.slice(1).map(line => {
+    const vals = [];
+    let cur = '', inQ = false;
+    for (let c of line) {
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { vals.push(cur); cur = ''; }
+      else cur += c;
+    }
+    vals.push(cur);
+    const obj = {};
+    headers.forEach((h,i) => { obj[h] = (vals[i]||'').replace(/^"|"$/g,'').trim(); });
+    return obj;
+  });
+}
+
 async function loadData() {
   try {
     const res = await fetch(SHEET_URL);
     const text = await res.text();
-    const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
-    const cols = json.table.cols.map(c => c.label);
-    allRooms = json.table.rows.map(r => {
-      const obj = {};
-      cols.forEach((col,i) => { obj[col] = r.c[i] ? (r.c[i].v !== null ? String(r.c[i].v) : '') : ''; });
-      return obj;
-    });
+    allRooms = parseCSV(text);
     document.getElementById('last-updated').textContent = '更新：' + new Date().toLocaleDateString('zh-CN');
     renderBuildings();
   } catch(e) {
