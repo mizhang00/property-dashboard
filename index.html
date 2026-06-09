@@ -189,7 +189,7 @@ function showBuilding(b) {
     html += `<div class="floor-label">${f}F</div><div class="rooms-grid">`;
     fr.forEach(r => {
       const sc = STATUS_CLASS[r.status] || 's-renting';
-      const hasCond = r.rent || r.mgmt_fee || r.deposit || r.cleaning_fee || r.ad_fee;
+      const hasCond = r.ad_fee && r.ad_fee !== '0';
       html += `<div class="room-card ${sc}" onclick="showRoom('${r.building}','${r.room}')">
         <div class="room-header"><span class="room-num">${r.room}</span><span class="room-status">${r.status}</span></div>
         <div class="room-info">
